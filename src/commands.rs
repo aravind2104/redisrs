@@ -38,15 +38,41 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
         }
 
         "SET" => {
-            if args.len() != 3 {
-                return RespValue::err(format!(
+            match args.len() {
+                3 => {
+                    store.set(
+                        args[1].clone(),
+                        args[2].clone(),
+                    );
+                    RespValue::ok()
+                }
+                5 => {
+                    if args[3].to_uppercase() != "EX" {
+                        return RespValue::err(
+                            format!("ERR syntax error for '{}' command", cmd)
+                        );
+                    }
+                    let seconds = match args[4].parse::<u64>() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            return RespValue::err(
+                                format!("ERR value is not an integer or out of range for '{}' command", cmd)
+                            );
+                        }
+                    };
+
+                    store.set_with_expiry(
+                        args[1].clone(),
+                        args[2].clone(),
+                        seconds,
+                    );
+                    RespValue::ok()
+                }
+                _ => RespValue::err(format!(
                     "ERR wrong number of arguments for '{}' command",
                     cmd
-                ));
+                )),
             }
-
-            store.set(args[1].clone(), args[2].clone());
-            RespValue::ok()
         }
 
         "DEL" => {
@@ -90,6 +116,54 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             RespValue::Array(Some(
                 keys.into_iter().map(|key| RespValue::bulk(key)).collect(),
             ))
+        }
+
+        "EXPIRE" => {
+            if args.len() != 3 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                )); 
+            }
+
+            let seconds = match args[2].parse::<u64>() {
+                Ok(v) => v,
+                Err(_) => {
+                    return RespValue::err(
+                        format!("ERR value is not an integer or out of range for '{}' command", cmd)
+                    );
+                }
+            };
+
+            let success = store.expire(&args[1], seconds);
+
+            RespValue::Integer(if success { 1 } else { 0 })
+        }
+
+        "PERSIST" => {
+            if args.len() != 2 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                )); 
+            }
+
+            let success = store.persist(&args[1]);
+
+            RespValue::Integer(if success { 1 } else { 0 })
+        }
+
+        "TTL" => {
+            if args.len() != 2 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                )); 
+            }
+
+            let ttl = store.ttl(&args[1]);
+
+            RespValue::Integer(ttl)
         }
 
         cmd => RespValue::err(format!("ERR unknown command '{}'", cmd)),
