@@ -21,13 +21,13 @@ async fn main() -> Result<()> {
         let (socket, addr) = listener.accept().await?;
 
         let store = Arc::clone(&store);
+
+        println!("Accepted connection from {}", addr);
         
         let _ = tokio::spawn(async move {
-            // Handle the connection here
-            println!("Accepted connection from {}", addr);
-
-            let _ = store;
-            let _ = socket;
+            if let Err(e) = server::handle_client(socket, store).await {
+                eprintln!("Error handling client {}: {}", addr, e);
+            }
         });
     }
 }
