@@ -17,7 +17,6 @@ pub enum RespError {
     Protocol(String),
 }
 
-
 pub fn parse(buf: &[u8]) -> Result<(RespValue, usize), RespError> {
     if buf.is_empty() {
         return Err(RespError::Incomplete);
@@ -29,7 +28,10 @@ pub fn parse(buf: &[u8]) -> Result<(RespValue, usize), RespError> {
         b':' => parse_integer(buf),
         b'$' => parse_bulk_string(buf),
         b'*' => parse_array(buf),
-        _ => Err(RespError::Protocol(format!("Unknown type byte: {}", buf[0] as char))),
+        _ => Err(RespError::Protocol(format!(
+            "Unknown type byte: {}",
+            buf[0] as char
+        ))),
     }
 }
 
@@ -46,8 +48,8 @@ fn find_crlf(buf: &[u8], start: usize) -> Option<usize> {
     None
 }
 
-fn read_line(buf: &[u8]) -> Result<(&str, usize) , RespError> {
-    let Some(pos) =find_crlf(buf, 1) else {
+fn read_line(buf: &[u8]) -> Result<(&str, usize), RespError> {
+    let Some(pos) = find_crlf(buf, 1) else {
         return Err(RespError::Incomplete);
     };
     let line = std::str::from_utf8(&buf[1..pos])
@@ -75,11 +77,11 @@ fn parse_integer(buf: &[u8]) -> Result<(RespValue, usize), RespError> {
 
 fn parse_bulk_string(buf: &[u8]) -> Result<(RespValue, usize), RespError> {
     let (line, header_len) = read_line(buf)?;
-    
+
     let data_len = line
         .parse::<i64>()
         .map_err(|e| RespError::Protocol(format!("Invalid bulk string length: {}", e)))?;
-    
+
     if data_len == -1 {
         return Ok((RespValue::BulkString(None), header_len));
     }
@@ -97,12 +99,11 @@ fn parse_bulk_string(buf: &[u8]) -> Result<(RespValue, usize), RespError> {
         return Err(RespError::Incomplete);
     }
 
-    let data = std::str::from_utf8(&buf[header_len..header_len+data_len])
+    let data = std::str::from_utf8(&buf[header_len..header_len + data_len])
         .map_err(|e| RespError::Protocol(format!("Invalid UTF-8 in bulk string: {}", e)))?;
 
     Ok((RespValue::BulkString(Some(data.to_string())), total_len))
 }
-
 
 fn parse_array(buf: &[u8]) -> Result<(RespValue, usize), RespError> {
     let (line, header_len) = read_line(buf)?;
@@ -116,9 +117,7 @@ fn parse_array(buf: &[u8]) -> Result<(RespValue, usize), RespError> {
     }
 
     if array_len < 0 {
-        return Err(RespError::Protocol(
-            "Negative array length".to_string(),
-        ));
+        return Err(RespError::Protocol("Negative array length".to_string()));
     }
 
     let mut offset = header_len;
@@ -133,29 +132,18 @@ fn parse_array(buf: &[u8]) -> Result<(RespValue, usize), RespError> {
     Ok((RespValue::Array(Some(values)), offset))
 }
 
-
 impl RespValue {
     pub fn serialize(&self) -> Vec<u8> {
         match self {
-            RespValue::SimpleString(s) => {
-                format!("+{}\r\n", s).into_bytes()
-            } 
-            RespValue::Error(s) => {
-                format!("-{}\r\n", s).into_bytes()
-            }
-            RespValue::Integer(i) => {
-                format!(":{}\r\n", i).into_bytes()
-            }
-            RespValue::BulkString(None) => {
-                format!("$-1\r\n").into_bytes()
-            }
+            RespValue::SimpleString(s) => format!("+{}\r\n", s).into_bytes(),
+            RespValue::Error(s) => format!("-{}\r\n", s).into_bytes(),
+            RespValue::Integer(i) => format!(":{}\r\n", i).into_bytes(),
+            RespValue::BulkString(None) => format!("$-1\r\n").into_bytes(),
             RespValue::BulkString(Some(s)) => {
                 let len = s.len();
                 format!("${}\r\n{}\r\n", len, s).into_bytes()
             }
-            RespValue::Array(None) => {
-                format!("*-1\r\n").into_bytes()
-            }
+            RespValue::Array(None) => format!("*-1\r\n").into_bytes(),
             RespValue::Array(Some(items)) => {
                 let mut out = format!("*{}\r\n", items.len()).into_bytes();
                 for item in items {
@@ -174,7 +162,7 @@ impl RespValue {
         RespValue::BulkString(None)
     }
 
-    pub fn bulk(s:impl Into<String>) -> Self {
+    pub fn bulk(s: impl Into<String>) -> Self {
         RespValue::BulkString(Some(s.into()))
     }
 

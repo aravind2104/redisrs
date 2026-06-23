@@ -12,7 +12,7 @@ impl Store {
         }
     }
 
-    pub fn get(&self, key:&str) -> Option<String> {
+    pub fn get(&self, key: &str) -> Option<String> {
         let data = self.data.lock().unwrap();
         data.get(key).cloned()
     }

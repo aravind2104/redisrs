@@ -1,10 +1,10 @@
-use tokio::net::TcpStream;
-use std::sync::Arc;
-use anyhow::Result;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use crate::store::Store;
 use crate::commands;
-use crate::resp::{self, RespValue, RespError};
+use crate::resp::{self, RespError, RespValue};
+use crate::store::Store;
+use anyhow::Result;
+use std::sync::Arc;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
 
 pub async fn handle_client(mut socket: TcpStream, store: Arc<Store>) -> Result<()> {
     let mut buf = Vec::with_capacity(4096);
@@ -26,9 +26,7 @@ pub async fn handle_client(mut socket: TcpStream, store: Arc<Store>) -> Result<(
 
                     let response = commands::execute(args, Arc::clone(&store));
 
-                    socket
-                        .write_all(&response.serialize())
-                        .await?;
+                    socket.write_all(&response.serialize()).await?;
 
                     consumed += n;
                 }
@@ -40,9 +38,7 @@ pub async fn handle_client(mut socket: TcpStream, store: Arc<Store>) -> Result<(
                 Err(e) => {
                     let response = RespValue::err(format!("{}", e));
 
-                    socket
-                        .write_all(&response.serialize())
-                        .await?;
+                    socket.write_all(&response.serialize()).await?;
                     buf.clear();
                     break;
                 }

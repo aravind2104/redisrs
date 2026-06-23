@@ -3,11 +3,10 @@ use crate::store::Store;
 use std::sync::Arc;
 
 pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
-
     if args.is_empty() {
         return RespValue::err("ERR empty command");
     }
-    
+
     let cmd = args[0].to_uppercase();
 
     match cmd.as_str() {
@@ -17,13 +16,19 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             } else if args.len() == 2 {
                 RespValue::bulk(args[1].clone())
             } else {
-                RespValue::err(format!("ERR wrong number of arguments for '{}' command", cmd))
+                RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ))
             }
         }
 
         "GET" => {
             if args.len() != 2 {
-                return RespValue::err(format!("ERR wrong number of arguments for '{}' command", cmd));
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
             }
 
             match store.get(&args[1]) {
@@ -34,7 +39,10 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
 
         "SET" => {
             if args.len() != 3 {
-                return RespValue::err(format!("ERR wrong number of arguments for '{}' command", cmd));
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
             }
 
             store.set(args[1].clone(), args[2].clone());
@@ -43,7 +51,10 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
 
         "DEL" => {
             if args.len() < 2 {
-                return RespValue::err(format!("ERR wrong number of arguments for '{}' command", cmd));
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
             }
 
             let count = store.del(&args[1..]);
@@ -52,7 +63,10 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
 
         "EXISTS" => {
             if args.len() < 2 {
-                return RespValue::err(format!("ERR wrong number of arguments for '{}' command", cmd));
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
             }
 
             let count = store.exists(&args[1..]);
@@ -61,23 +75,22 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
 
         "KEYS" => {
             if args.len() > 2 {
-                return RespValue::err(format!("ERR wrong number of arguments for '{}' command", cmd));
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
             }
 
             if args.len() == 2 && args[1] != "*" {
                 return RespValue::err("ERR only '*' pattern is supported for KEYS command");
             }
-            
+
             let keys = store.keys();
-            
+
             RespValue::Array(Some(
-                keys.into_iter()
-                    .map(|key| RespValue::bulk(key))
-                    .collect()
+                keys.into_iter().map(|key| RespValue::bulk(key)).collect(),
             ))
         }
-
-
 
         cmd => RespValue::err(format!("ERR unknown command '{}'", cmd)),
     }
