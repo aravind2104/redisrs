@@ -11,7 +11,6 @@ pub struct Store {
     pub data: Mutex<HashMap<String, StoreEntry>>,
 }
 
-
 impl Store {
     // Creates a new instance of the Store with an empty HashMap.
     pub fn new() -> Self {
@@ -28,7 +27,7 @@ impl Store {
             if Self::is_expired(entry) {
                 data.remove(key);
                 return None;
-            } 
+            }
             return Some(entry.value.clone());
         }
 
@@ -38,14 +37,26 @@ impl Store {
     // Sets the value for the given key in the store. If the key already exists, its value will be updated. The expiration time is set to None, meaning the key will not expire unless explicitly set later.
     pub fn set(&self, key: String, value: String) {
         let mut data = self.data.lock().unwrap();
-        data.insert(key, StoreEntry{value, expires_at: None});
+        data.insert(
+            key,
+            StoreEntry {
+                value,
+                expires_at: None,
+            },
+        );
     }
 
     //Sets the value for the given key in the store with an expiration time in seconds. If the key already exists, its value and expiration time will be updated.
     pub fn set_with_expiry(&self, key: String, value: String, seconds: u64) {
         let mut data = self.data.lock().unwrap();
         let expires_at = Instant::now() + Duration::from_secs(seconds);
-        data.insert(key, StoreEntry{value, expires_at: Some(expires_at)});
+        data.insert(
+            key,
+            StoreEntry {
+                value,
+                expires_at: Some(expires_at),
+            },
+        );
     }
 
     // Removes the specified keys from the store and returns the number of keys removed.
@@ -84,7 +95,7 @@ impl Store {
     }
 
     //To Set an expiration time for a key in seconds. Returns true if the key exists and the expiration was set, false otherwise.
-    pub fn expire(&self, key: &str, seconds: u64) -> bool { 
+    pub fn expire(&self, key: &str, seconds: u64) -> bool {
         let mut data = self.data.lock().unwrap();
         if let Some(entry) = data.get_mut(key) {
             entry.expires_at = Some(Instant::now() + Duration::from_secs(seconds));
@@ -92,7 +103,7 @@ impl Store {
             true
         } else {
             false
-        } 
+        }
     }
 
     //To remove the expiration from a key, making it persistent. Returns true if the key exists and the expiration was removed, false otherwise.
@@ -124,7 +135,6 @@ impl Store {
                     return -1; // Key exists but has no expiry
                 }
             }
-
         } else {
             return -2; // Key does not exist
         }

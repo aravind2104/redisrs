@@ -37,43 +37,33 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             }
         }
 
-        "SET" => {
-            match args.len() {
-                3 => {
-                    store.set(
-                        args[1].clone(),
-                        args[2].clone(),
-                    );
-                    RespValue::ok()
-                }
-                5 => {
-                    if args[3].to_uppercase() != "EX" {
-                        return RespValue::err(
-                            format!("ERR syntax error for '{}' command", cmd)
-                        );
-                    }
-                    let seconds = match args[4].parse::<u64>() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            return RespValue::err(
-                                format!("ERR value is not an integer or out of range for '{}' command", cmd)
-                            );
-                        }
-                    };
-
-                    store.set_with_expiry(
-                        args[1].clone(),
-                        args[2].clone(),
-                        seconds,
-                    );
-                    RespValue::ok()
-                }
-                _ => RespValue::err(format!(
-                    "ERR wrong number of arguments for '{}' command",
-                    cmd
-                )),
+        "SET" => match args.len() {
+            3 => {
+                store.set(args[1].clone(), args[2].clone());
+                RespValue::ok()
             }
-        }
+            5 => {
+                if args[3].to_uppercase() != "EX" {
+                    return RespValue::err(format!("ERR syntax error for '{}' command", cmd));
+                }
+                let seconds = match args[4].parse::<u64>() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        return RespValue::err(format!(
+                            "ERR value is not an integer or out of range for '{}' command",
+                            cmd
+                        ));
+                    }
+                };
+
+                store.set_with_expiry(args[1].clone(), args[2].clone(), seconds);
+                RespValue::ok()
+            }
+            _ => RespValue::err(format!(
+                "ERR wrong number of arguments for '{}' command",
+                cmd
+            )),
+        },
 
         "DEL" => {
             if args.len() < 2 {
@@ -123,15 +113,16 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
                 return RespValue::err(format!(
                     "ERR wrong number of arguments for '{}' command",
                     cmd
-                )); 
+                ));
             }
 
             let seconds = match args[2].parse::<u64>() {
                 Ok(v) => v,
                 Err(_) => {
-                    return RespValue::err(
-                        format!("ERR value is not an integer or out of range for '{}' command", cmd)
-                    );
+                    return RespValue::err(format!(
+                        "ERR value is not an integer or out of range for '{}' command",
+                        cmd
+                    ));
                 }
             };
 
@@ -145,7 +136,7 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
                 return RespValue::err(format!(
                     "ERR wrong number of arguments for '{}' command",
                     cmd
-                )); 
+                ));
             }
 
             let success = store.persist(&args[1]);
@@ -158,7 +149,7 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
                 return RespValue::err(format!(
                     "ERR wrong number of arguments for '{}' command",
                     cmd
-                )); 
+                ));
             }
 
             let ttl = store.ttl(&args[1]);
