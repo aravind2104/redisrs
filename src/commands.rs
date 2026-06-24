@@ -327,6 +327,64 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             }
         }
 
+        "SADD" => {
+            if args.len() < 3 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
+            }
+
+            match store.sadd(args[1].clone(), args[2..].to_vec()){
+                Ok(count) => RespValue::Integer(count),
+                Err(e) => RespValue::err(e),
+            }
+        }
+
+        "SMEMBERS" => {
+            if args.len() != 2 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ))
+            }
+
+            match store.smembers(&args[1]) {
+                Ok(members) => RespValue::Array(Some(
+                    members.into_iter().map(|member| RespValue::bulk(member)).collect()
+                )),
+                Err(e) => RespValue::err(e),
+            }
+        }
+
+        "SISMEMBER" => {
+            if args.len() != 3 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ))
+            }
+
+            match store.sismember(&args[1], &args[2]){
+                Ok(is_member) => RespValue::Integer(is_member as i64),
+                Err(e) => RespValue::err(e),
+            }
+        }
+
+        "SREM" => {
+            if args.len() < 3 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
+            }
+
+            match store.srem(&args[1], &args[2..]) {
+                Ok(count) => RespValue::Integer(count),
+                Err(e) => RespValue::err(e),
+            }
+        }
+
         cmd => RespValue::err(format!("ERR unknown command '{}'", cmd)),
     }
 }
