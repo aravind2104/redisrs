@@ -170,6 +170,102 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             RespValue::Integer(ttl)
         }
 
+        "LPUSH" => {
+            if args.len() < 3 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
+            }
+
+            match store.lpush(args[1].clone(), args[2..].to_vec()) {
+                Ok(len) => RespValue::Integer(len),
+                Err(e) => RespValue::err(e),
+            }
+        }
+
+        "RPUSH" => {
+            if args.len() < 3 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
+            }
+
+            match store.rpush(args[1].clone(), args[2..].to_vec()) {
+                Ok(len) => RespValue::Integer(len),
+                Err(e) => RespValue::err(e),
+            }
+        }
+
+        "LPOP" => {
+            if args.len() != 2 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
+            }
+
+            match store.lpop(&args[1]) {
+                Ok(Some(value)) => RespValue::bulk(value),
+                Ok(None) => RespValue::null(),
+                Err(e) => RespValue::err(e),
+            }
+        }
+
+        "RPOP" => {
+            if args.len() != 2 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
+            }
+
+            match store.rpop(&args[1]) {
+                Ok(Some(value)) => RespValue::bulk(value),
+                Ok(None) => RespValue::null(),
+                Err(e) => RespValue::err(e),
+            }
+        }
+
+        "LRANGE" => {
+            if args.len() != 4 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
+            }
+
+            let start = match args[2].parse::<i64>() {
+                Ok(v) => v,
+                Err(_) => {
+                    return RespValue::err(format!(
+                        "ERR value is not an integer or out of range for '{}' command",
+                        cmd
+                    ))
+                }
+            };
+
+            let stop = match args[3].parse::<i64>() {
+                Ok(v) => v,
+                Err(_) => {
+                    return RespValue::err(format!(
+                        "ERR value is not an integer or out of range for '{}' command",
+                        cmd
+                    ))
+                }
+            };
+
+            match store.lrange(&args[1],start,stop) {
+                Ok(values) => {
+                    return RespValue::Array(Some(
+                        values.into_iter().map(|value| RespValue::bulk(value)).collect(),
+                    ));
+                }
+                Err(e) => RespValue::err(e),
+            }
+        }
+
         cmd => RespValue::err(format!("ERR unknown command '{}'", cmd)),
     }
 }
