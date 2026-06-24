@@ -47,9 +47,9 @@ impl Store {
     }
 
     //Sets the value for the given key in the store with an expiration time in seconds. If the key already exists, its value and expiration time will be updated.
-    pub fn set_with_expiry(&self, key: String, value: String, seconds: u64) {
+    pub fn set_with_expiry(&self, key: String, value: String, duration: Duration) {
         let mut data = self.data.lock().unwrap();
-        let expires_at = Instant::now() + Duration::from_secs(seconds);
+        let expires_at = Instant::now() + duration;
         data.insert(
             key,
             StoreEntry {

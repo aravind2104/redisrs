@@ -1,6 +1,7 @@
 use crate::resp::RespValue;
 use crate::store::Store;
 use std::sync::Arc;
+use std::time::Duration;
 
 pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
     if args.is_empty() {
@@ -43,20 +44,31 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
                 RespValue::ok()
             }
             5 => {
-                if args[3].to_uppercase() != "EX" {
-                    return RespValue::err(format!("ERR syntax error for '{}' command", cmd));
-                }
-                let seconds = match args[4].parse::<u64>() {
+                let option = args[3].to_uppercase();
+                let amount = match args[4].parse::<u64>() {
                     Ok(v) => v,
                     Err(_) => {
+                        return RespValue::err(
+                            format!("ERR value is not an integer or out of range for '{}' command", cmd),
+                        );
+                    }
+                };
+                let duration = match option.as_str() {
+                    "EX" => Duration::from_secs(amount),
+                    "PX" => Duration::from_millis(amount),
+                    _ => {
                         return RespValue::err(format!(
-                            "ERR value is not an integer or out of range for '{}' command",
+                            "ERR syntax error for '{}' command",
                             cmd
                         ));
                     }
                 };
 
-                store.set_with_expiry(args[1].clone(), args[2].clone(), seconds);
+                store.set_with_expiry(
+                    args[1].clone(),
+                    args[2].clone(),
+                    duration
+                );
                 RespValue::ok()
             }
             _ => RespValue::err(format!(
