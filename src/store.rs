@@ -4,6 +4,8 @@ use std::time::{Duration, Instant};
 use tokio::time;
 use std::sync::Arc;
 
+const WRONG_TYPE: &str = "WRONGTYPE Operation against a key holding the wrong kind of value";
+
 #[derive(Clone)]
 pub enum StoreValue {
     StringVal(String),
@@ -42,7 +44,7 @@ impl Store {
                     return Ok(Some(s.clone()));
                 }
                 _ => {
-                    return Err(format!("WRONGTYPE Operation against a key holding the wrong kind of value"));
+                    return Err(WRONG_TYPE.to_string());
                 }
             }
         }
@@ -156,6 +158,173 @@ impl Store {
         }
     }
 
+    //This function is intended to implement the LPUSH command, which adds one or more values to the head of a list stored at a given key. If the key does not exist, it should create a new list. If the key exists but is not a list, it should return an error. The function should return the length of the list after the push operation.
+    pub fn lpush(&self, key: String, values: Vec<String>) -> Result<i64, String> {
+        let mut data = self.data.lock().unwrap();
+
+        match data.get_mut(&key) {
+            Some(entry) => {
+                match &mut entry.value {
+                    StoreValue::ListVal(list) => {
+                        for value in values {
+                            list.push_front(value);
+                        }
+
+                        Ok(list.len() as i64)
+                    }
+
+                    _ => Err(WRONG_TYPE.to_string()),
+                }
+            }
+            None => {
+                let mut list = VecDeque::new();
+
+                for value in values {
+                    list.push_front(value);
+                }
+
+                let len = list.len() as i64;
+
+                data.insert(
+                    key,
+                    StoreEntry {
+                        value: StoreValue::ListVal(list),
+                        expires_at: None,
+                    }
+                );
+                Ok(len)
+            }
+        }
+    }
+
+
+    //This function is intended to implement the RPUSH command, which adds one or more values to the tail of a list stored at a given key. If the key does not exist, it should create a new list. If the key exists but is not a list, it should return an error. The function should return the length of the list after the push operation.
+    pub fn rpush(&self, key: String, values: Vec<String>) -> Result<i64,String> {
+        let mut data = self.data.lock().unwrap();
+
+        match data.get_mut(&key) {
+            Some(entry) => {
+                match &mut entry.value {
+                    StoreValue::ListVal(list) => {
+                        for value in values {
+                            list.push_back(value);
+                        }
+
+                        Ok(list.len() as i64)
+                    }
+                    _ => Err(WRONG_TYPE.to_string()),
+                }
+            }
+            None => {
+                let mut list = VecDeque::new();
+
+                for value in values {
+                    list.push_back(value);
+                }
+
+                let len = list.len() as i64;
+
+                data.insert(
+                    key,
+                    StoreEntry {
+                        value: StoreValue::ListVal(list),
+                        expires_at: None,
+                    }
+                );
+                Ok(len)
+            }
+        }
+
+    }
+
+    //This function is intended to implement the LPOP command, which removes and returns the first element of a list stored at a given key. If the key does not exist or is not a list, it should return an error. If the list is empty, it should return None.
+    pub fn lpop(&self, key: &str) -> Result<Option<String>, String> {
+        let mut data = self.data.lock().unwrap();
+
+        match data.get_mut(key) {
+            Some(entry) => {
+                match &mut entry.value {
+                    StoreValue::ListVal(list) => {
+                        if list.is_empty() {
+                            Ok(None)
+                        } else {
+                            Ok(list.pop_front())
+                        }
+                    }
+                    _ => Err(WRONG_TYPE.to_string()),
+                }
+            }
+            None => Ok(None)
+        }
+    }
+
+    //This function is intended to implement the RPOP command, which removes and returns the last element of a list stored at a given key. If the key does not exist or is not a list, it should return an error. If the list is empty, it should return None.
+    pub fn rpop(&self, key:&str) -> Result<Option<String>, String> {
+        let mut data = self.data.lock().unwrap();
+    
+        match data.get_mut(key) {
+            Some(entry) => {
+                match &mut entry.value {
+                    StoreValue::ListVal(list) => {
+                        if list.is_empty() {
+                            Ok(None)
+                        } else {
+                            Ok(list.pop_back())
+                        }
+                    }
+                    _ => Err(WRONG_TYPE.to_string()),
+                }
+            }
+            None => Ok(None)
+        }
+    }
+
+
+    //This function is intended to implement the LRANGE command, which returns a range of elements from a list stored at a given key. The range is specified by the start and stop indices. If the key does not exist or is not a list, it should return an error. If the range is out of bounds, it should return an empty vector.
+    pub fn lrange(&self, key: &str, start: i64, stop: i64) -> Result<Vec<String>, String> {
+        let data = self.data.lock().unwrap();
+
+        match data.get(key) {
+            Some(entry) => {
+                match &entry.value {
+                    StoreValue::ListVal(list) => {
+                        // Convert indices to usize for slicing
+                        let start_idx = if start < 0 {
+                            list.len() as i64 + start
+                        } else {
+                            start
+                        } as usize;
+                        let stop_idx = if stop < 0 {
+                            list.len() as i64 + stop
+                        } else {
+                            stop
+                        } as usize;
+
+                        // Ensure indices are within bounds
+                        let start_idx = start_idx.max(0);
+                        let stop_idx = stop_idx.min(list.len()-1);
+
+                        if start_idx > stop_idx || start_idx >= list.len() {
+                            return Ok(vec![]); // Return empty vector if range is invalid
+                        }
+
+                        // Return the specified range
+                        Ok(
+                            list.iter()
+                                .skip(start_idx)
+                                .take(stop_idx - start_idx + 1)
+                                .cloned()
+                                .collect())
+                    }
+                    _ => Err(WRONG_TYPE.to_string()),
+                }
+
+            }
+            None => Ok(vec![]), // Return empty vector if key does not exist
+        }
+    }
+
+    //This function runs in a loop, sleeping for 1 second between iterations. In each iteration, it locks the store's data and removes any entries that have expired. This ensures that expired keys are cleaned up regularly, preventing the store from growing indefinitely with stale data.
     pub async fn active_expiry_task(store: Arc<Store>){
         loop{
             time::sleep(Duration::from_secs(1)).await;
