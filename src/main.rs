@@ -15,6 +15,8 @@ async fn main() -> Result<()> {
     let listener = TcpListener::bind("127.0.0.1:6379").await?;
     let store = Arc::new(Store::new());
 
+    tokio::spawn(store::Store::active_expiry_task(Arc::clone(&store)));
+
     println!("redisrs listening on 127.0.0.1:6379");
 
     loop {

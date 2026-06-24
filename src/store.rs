@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
+use tokio::time;
+use std::sync::Arc;
 
 pub struct StoreEntry {
     pub value: String,
@@ -137,6 +139,20 @@ impl Store {
             }
         } else {
             return -2; // Key does not exist
+        }
+    }
+
+    pub async fn active_expiry_task(store: Arc<Store>){
+        loop{
+            time::sleep(Duration::from_secs(1)).await;
+            let mut data = store.data.lock().unwrap();
+            let now = Instant::now();
+            data.retain(|_,entry|{
+                match entry.expires_at{
+                    Some(expires_at) => expires_at > now,
+                    None => true,
+                }
+            });
         }
     }
 
