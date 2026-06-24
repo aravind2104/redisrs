@@ -1,8 +1,8 @@
-use std::collections::{HashMap, VecDeque, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tokio::time;
-use std::sync::Arc;
 
 const WRONG_TYPE: &str = "WRONGTYPE Operation against a key holding the wrong kind of value";
 
@@ -163,19 +163,17 @@ impl Store {
         let mut data = self.data.lock().unwrap();
 
         match data.get_mut(&key) {
-            Some(entry) => {
-                match &mut entry.value {
-                    StoreValue::ListVal(list) => {
-                        for value in values {
-                            list.push_front(value);
-                        }
-
-                        Ok(list.len() as i64)
+            Some(entry) => match &mut entry.value {
+                StoreValue::ListVal(list) => {
+                    for value in values {
+                        list.push_front(value);
                     }
 
-                    _ => Err(WRONG_TYPE.to_string()),
+                    Ok(list.len() as i64)
                 }
-            }
+
+                _ => Err(WRONG_TYPE.to_string()),
+            },
             None => {
                 let mut list = VecDeque::new();
 
@@ -190,31 +188,28 @@ impl Store {
                     StoreEntry {
                         value: StoreValue::ListVal(list),
                         expires_at: None,
-                    }
+                    },
                 );
                 Ok(len)
             }
         }
     }
 
-
     //This function is intended to implement the RPUSH command, which adds one or more values to the tail of a list stored at a given key. If the key does not exist, it should create a new list. If the key exists but is not a list, it should return an error. The function should return the length of the list after the push operation.
-    pub fn rpush(&self, key: String, values: Vec<String>) -> Result<i64,String> {
+    pub fn rpush(&self, key: String, values: Vec<String>) -> Result<i64, String> {
         let mut data = self.data.lock().unwrap();
 
         match data.get_mut(&key) {
-            Some(entry) => {
-                match &mut entry.value {
-                    StoreValue::ListVal(list) => {
-                        for value in values {
-                            list.push_back(value);
-                        }
-
-                        Ok(list.len() as i64)
+            Some(entry) => match &mut entry.value {
+                StoreValue::ListVal(list) => {
+                    for value in values {
+                        list.push_back(value);
                     }
-                    _ => Err(WRONG_TYPE.to_string()),
+
+                    Ok(list.len() as i64)
                 }
-            }
+                _ => Err(WRONG_TYPE.to_string()),
+            },
             None => {
                 let mut list = VecDeque::new();
 
@@ -229,12 +224,11 @@ impl Store {
                     StoreEntry {
                         value: StoreValue::ListVal(list),
                         expires_at: None,
-                    }
+                    },
                 );
                 Ok(len)
             }
         }
-
     }
 
     //This function is intended to implement the LPOP command, which removes and returns the first element of a list stored at a given key. If the key does not exist or is not a list, it should return an error. If the list is empty, it should return None.
@@ -242,43 +236,38 @@ impl Store {
         let mut data = self.data.lock().unwrap();
 
         match data.get_mut(key) {
-            Some(entry) => {
-                match &mut entry.value {
-                    StoreValue::ListVal(list) => {
-                        if list.is_empty() {
-                            Ok(None)
-                        } else {
-                            Ok(list.pop_front())
-                        }
+            Some(entry) => match &mut entry.value {
+                StoreValue::ListVal(list) => {
+                    if list.is_empty() {
+                        Ok(None)
+                    } else {
+                        Ok(list.pop_front())
                     }
-                    _ => Err(WRONG_TYPE.to_string()),
                 }
-            }
-            None => Ok(None)
+                _ => Err(WRONG_TYPE.to_string()),
+            },
+            None => Ok(None),
         }
     }
 
     //This function is intended to implement the RPOP command, which removes and returns the last element of a list stored at a given key. If the key does not exist or is not a list, it should return an error. If the list is empty, it should return None.
-    pub fn rpop(&self, key:&str) -> Result<Option<String>, String> {
+    pub fn rpop(&self, key: &str) -> Result<Option<String>, String> {
         let mut data = self.data.lock().unwrap();
-    
+
         match data.get_mut(key) {
-            Some(entry) => {
-                match &mut entry.value {
-                    StoreValue::ListVal(list) => {
-                        if list.is_empty() {
-                            Ok(None)
-                        } else {
-                            Ok(list.pop_back())
-                        }
+            Some(entry) => match &mut entry.value {
+                StoreValue::ListVal(list) => {
+                    if list.is_empty() {
+                        Ok(None)
+                    } else {
+                        Ok(list.pop_back())
                     }
-                    _ => Err(WRONG_TYPE.to_string()),
                 }
-            }
-            None => Ok(None)
+                _ => Err(WRONG_TYPE.to_string()),
+            },
+            None => Ok(None),
         }
     }
-
 
     //This function is intended to implement the LRANGE command, which returns a range of elements from a list stored at a given key. The range is specified by the start and stop indices. If the key does not exist or is not a list, it should return an error. If the range is out of bounds, it should return an empty vector.
     pub fn lrange(&self, key: &str, start: i64, stop: i64) -> Result<Vec<String>, String> {
@@ -302,39 +291,36 @@ impl Store {
 
                         // Ensure indices are within bounds
                         let start_idx = start_idx.max(0);
-                        let stop_idx = stop_idx.min(list.len()-1);
+                        let stop_idx = stop_idx.min(list.len() - 1);
 
                         if start_idx > stop_idx || start_idx >= list.len() {
                             return Ok(vec![]); // Return empty vector if range is invalid
                         }
 
                         // Return the specified range
-                        Ok(
-                            list.iter()
-                                .skip(start_idx)
-                                .take(stop_idx - start_idx + 1)
-                                .cloned()
-                                .collect())
+                        Ok(list
+                            .iter()
+                            .skip(start_idx)
+                            .take(stop_idx - start_idx + 1)
+                            .cloned()
+                            .collect())
                     }
                     _ => Err(WRONG_TYPE.to_string()),
                 }
-
             }
             None => Ok(vec![]), // Return empty vector if key does not exist
         }
     }
 
     //This function runs in a loop, sleeping for 1 second between iterations. In each iteration, it locks the store's data and removes any entries that have expired. This ensures that expired keys are cleaned up regularly, preventing the store from growing indefinitely with stale data.
-    pub async fn active_expiry_task(store: Arc<Store>){
-        loop{
+    pub async fn active_expiry_task(store: Arc<Store>) {
+        loop {
             time::sleep(Duration::from_secs(1)).await;
             let mut data = store.data.lock().unwrap();
             let now = Instant::now();
-            data.retain(|_,entry|{
-                match entry.expires_at{
-                    Some(expires_at) => expires_at > now,
-                    None => true,
-                }
+            data.retain(|_, entry| match entry.expires_at {
+                Some(expires_at) => expires_at > now,
+                None => true,
             });
         }
     }

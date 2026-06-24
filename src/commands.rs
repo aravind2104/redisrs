@@ -49,27 +49,21 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
                 let amount = match args[4].parse::<u64>() {
                     Ok(v) => v,
                     Err(_) => {
-                        return RespValue::err(
-                            format!("ERR value is not an integer or out of range for '{}' command", cmd),
-                        );
+                        return RespValue::err(format!(
+                            "ERR value is not an integer or out of range for '{}' command",
+                            cmd
+                        ));
                     }
                 };
                 let duration = match option.as_str() {
                     "EX" => Duration::from_secs(amount),
                     "PX" => Duration::from_millis(amount),
                     _ => {
-                        return RespValue::err(format!(
-                            "ERR syntax error for '{}' command",
-                            cmd
-                        ));
+                        return RespValue::err(format!("ERR syntax error for '{}' command", cmd));
                     }
                 };
 
-                store.set_with_expiry(
-                    args[1].clone(),
-                    args[2].clone(),
-                    duration
-                );
+                store.set_with_expiry(args[1].clone(), args[2].clone(), duration);
                 RespValue::ok()
             }
             _ => RespValue::err(format!(
@@ -242,7 +236,7 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
                     return RespValue::err(format!(
                         "ERR value is not an integer or out of range for '{}' command",
                         cmd
-                    ))
+                    ));
                 }
             };
 
@@ -252,14 +246,17 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
                     return RespValue::err(format!(
                         "ERR value is not an integer or out of range for '{}' command",
                         cmd
-                    ))
+                    ));
                 }
             };
 
-            match store.lrange(&args[1],start,stop) {
+            match store.lrange(&args[1], start, stop) {
                 Ok(values) => {
                     return RespValue::Array(Some(
-                        values.into_iter().map(|value| RespValue::bulk(value)).collect(),
+                        values
+                            .into_iter()
+                            .map(|value| RespValue::bulk(value))
+                            .collect(),
                     ));
                 }
                 Err(e) => RespValue::err(e),
