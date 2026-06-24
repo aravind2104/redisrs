@@ -396,6 +396,103 @@ impl Store {
         }
     }
 
+    //This function is intended to implement the SADD command, which adds one or more members to a set stored at a given key. If the key does not exist, it should create a new set. If the key exists but is not a set, it should return an error. The function should return the number of members that were added to the set, excluding any members that were already present.
+    pub fn sadd(&self, key: String, members: Vec<String>) -> Result<i64, String> {
+        let mut data = self.data.lock().unwrap();
+
+        match data.get_mut(&key) {
+            Some(entry) => {
+                match &mut entry.value {
+                    StoreValue::SetVal(set) => {
+                        let mut count = 0;
+                        for member in members {
+                            if set.insert(member) {
+                                count += 1;
+                            }
+                        }
+                        Ok(count)
+                    }
+                    _ => Err(WRONG_TYPE.to_string()),
+                }
+            }
+            None => {
+                let mut set = HashSet::new();
+                let mut count = 0;
+                for member in members {
+                    if set.insert(member) {
+                        count += 1;
+                    }
+                }
+
+                data.insert(
+                    key,
+                    StoreEntry {
+                        value: StoreValue::SetVal(set),
+                        expires_at: None,
+                    }
+                );
+                Ok(count)
+            }
+        }
+    }
+
+    //This function is intended to implement the SMEMBERS command, which retrieves all members of a set stored at a given key. If the key does not exist, it should return an empty vector. If the key exists but is not a set, it should return an error. The function should return a vector containing all the members of the set.
+    pub fn smembers(&self, key: &str) -> Result<Vec<String>, String> {
+        let data = self.data.lock().unwrap();
+
+        match data.get(key) {
+            Some(entry) => {
+                match &entry.value {
+                    StoreValue::SetVal(set) => {
+                        Ok(set.iter().cloned().collect())
+                    }
+                    _ => Err(WRONG_TYPE.to_string()),
+                }
+            }
+            None => Ok(vec![]), //Return empty vector if key does not exist
+        }
+    }
+
+    //This function is intended to implement the SISMEMBER command, which checks if a member exists in a set stored at a given key. If the key does not exist, it should return false. If the key exists but is not a set, it should return an error. The function should return true if the member exists in the set.
+    pub fn sismember(&self, key: &str, member: &str) -> Result<bool, String> {
+        let data = self.data.lock().unwrap();
+
+        match data.get(key) {
+            Some(entry) => {
+                match &entry.value {
+                    StoreValue::SetVal(set) => {
+                        Ok(set.contains(member))
+                    }
+                    _ => Err(WRONG_TYPE.to_string()),
+                }
+            }
+            None => Ok(false), //Return false if key does not exist
+        }
+    }
+
+    //This function is intended to implement the SREM command, which removes one or more members from a set stored at a given key. If the key does not exist, it should return 0. If the key exists but is not a set, it should return an error. The function should return the number of members that were successfully removed from the set.
+    pub fn srem(&self, key: &str, members: &[String]) -> Result<i64, String> {
+        let mut data = self.data.lock().unwrap();
+
+        match data.get_mut(key) {
+            Some(entry) => {
+                match &mut entry.value {
+                    StoreValue::SetVal(set) => {
+                        let mut count = 0;
+                        for member in members {
+                            if set.remove(member) {
+                                count += 1;
+                            }
+                        }
+                        Ok(count)
+                    }
+                    _ => Err(WRONG_TYPE.to_string()),
+                }
+            }
+            None => Ok(0) //Return 0 if key does not exist
+        }
+    }
+
     //This function runs in a loop, sleeping for 1 second between iterations. In each iteration, it locks the store's data and removes any entries that have expired. This ensures that expired keys are cleaned up regularly, preventing the store from growing indefinitely with stale data.
     pub async fn active_expiry_task(store: Arc<Store>) {
         loop {
