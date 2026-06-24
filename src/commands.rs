@@ -271,11 +271,10 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
                 ));
             }
 
-            match store.hset(args[1].clone(), args[2].clone(), args[3].clone()){
+            match store.hset(args[1].clone(), args[2].clone(), args[3].clone()) {
                 Ok(success) => RespValue::Integer(success),
-                Err(e) => RespValue::err(e),    
+                Err(e) => RespValue::err(e),
             }
-
         }
 
         "HGET" => {
@@ -286,7 +285,7 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
                 ));
             }
 
-            match store.hget(&args[1], &args[2]){
+            match store.hget(&args[1], &args[2]) {
                 Ok(Some(value)) => RespValue::bulk(value),
                 Ok(None) => RespValue::null(),
                 Err(e) => RespValue::err(e),
@@ -301,7 +300,7 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
                 ));
             }
 
-            match store.hdel(&args[1],&args[2..]){
+            match store.hdel(&args[1], &args[2..]) {
                 Ok(count) => RespValue::Integer(count),
                 Err(e) => RespValue::err(e),
             }
@@ -315,19 +314,15 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
                 ));
             }
 
-            match store.hgetall(&args[1]){
-                Ok(values) => {
-                    RespValue::Array(Some(
-                        values.into_iter()
-                            .flat_map(|(field, value)| {
-                                vec![
-                                    RespValue::bulk(field),
-                                    RespValue::bulk(value),
-                                ]
-                            })
-                            .collect()
-                    ))
-                }
+            match store.hgetall(&args[1]) {
+                Ok(values) => RespValue::Array(Some(
+                    values
+                        .into_iter()
+                        .flat_map(|(field, value)| {
+                            vec![RespValue::bulk(field), RespValue::bulk(value)]
+                        })
+                        .collect(),
+                )),
                 Err(e) => RespValue::err(e),
             }
         }

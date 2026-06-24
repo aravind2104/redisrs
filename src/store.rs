@@ -313,7 +313,7 @@ impl Store {
     }
 
     //This function is intended to implement the HSET command, which sets the value of a field in a hash stored at a given key. If the key does not exist, it should create a new hash. If the key exists but is not a hash, it should return an error. The function should return 1 if a new field was created and 0 if an existing field was updated.
-    pub fn hset(&self, key:String, field:String, value:String) -> Result<i64, String> {
+    pub fn hset(&self, key: String, field: String, value: String) -> Result<i64, String> {
         let mut data = self.data.lock().unwrap();
 
         match data.get_mut(&key) {
@@ -324,18 +324,18 @@ impl Store {
                         hash.insert(field, value);
                         Ok(is_new_field as i64) //Return 1 if new field created, 0 if updated
                     }
-                    _ => Err(WRONG_TYPE.to_string()),                    
+                    _ => Err(WRONG_TYPE.to_string()),
                 }
             }
             None => {
                 let mut hash = HashMap::new();
-                hash.insert(field,value);
+                hash.insert(field, value);
                 data.insert(
                     key,
-                    StoreEntry { 
-                        value: StoreValue::HashVal(hash), 
-                        expires_at: None 
-                    }
+                    StoreEntry {
+                        value: StoreValue::HashVal(hash),
+                        expires_at: None,
+                    },
                 );
                 Ok(1) //New field created
             }
@@ -354,7 +354,7 @@ impl Store {
                     }
                     _ => Err(WRONG_TYPE.to_string()),
                 }
-            },
+            }
             None => Ok(None), //Return None if key does not exist
         }
     }
@@ -364,20 +364,18 @@ impl Store {
         let mut data = self.data.lock().unwrap();
 
         match data.get_mut(key) {
-            Some(entry) => {
-                match &mut entry.value {
-                    StoreValue::HashVal(hash) => {
-                        let mut count = 0;
-                        for field in fields {
-                            if hash.remove(field).is_some() {
-                                count += 1;
-                            }
+            Some(entry) => match &mut entry.value {
+                StoreValue::HashVal(hash) => {
+                    let mut count = 0;
+                    for field in fields {
+                        if hash.remove(field).is_some() {
+                            count += 1;
                         }
-                        Ok(count)
                     }
-                    _ => Err(WRONG_TYPE.to_string()),
+                    Ok(count)
                 }
-            }
+                _ => Err(WRONG_TYPE.to_string()),
+            },
             None => Ok(0), //Return 0 if key does not exist
         }
     }
@@ -387,18 +385,13 @@ impl Store {
         let data = self.data.lock().unwrap();
 
         match data.get(key) {
-            Some(entry) => {
-                match &entry.value {
-                    StoreValue::HashVal(hash) => {
-                        Ok(hash
-                            .iter()
-                            .map(|(field, value)| (field.clone(), value.clone()))
-                            .collect()
-                        )
-                    }
-                    _ => Err(WRONG_TYPE.to_string()),
-                }
-            }
+            Some(entry) => match &entry.value {
+                StoreValue::HashVal(hash) => Ok(hash
+                    .iter()
+                    .map(|(field, value)| (field.clone(), value.clone()))
+                    .collect()),
+                _ => Err(WRONG_TYPE.to_string()),
+            },
             None => Ok(vec![]), //Return empty vector if key does not exist
         }
     }
