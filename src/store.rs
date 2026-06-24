@@ -312,6 +312,97 @@ impl Store {
         }
     }
 
+    //This function is intended to implement the HSET command, which sets the value of a field in a hash stored at a given key. If the key does not exist, it should create a new hash. If the key exists but is not a hash, it should return an error. The function should return 1 if a new field was created and 0 if an existing field was updated.
+    pub fn hset(&self, key:String, field:String, value:String) -> Result<i64, String> {
+        let mut data = self.data.lock().unwrap();
+
+        match data.get_mut(&key) {
+            Some(entry) => {
+                match &mut entry.value {
+                    StoreValue::HashVal(hash) => {
+                        let is_new_field = !hash.contains_key(&field);
+                        hash.insert(field, value);
+                        Ok(is_new_field as i64) //Return 1 if new field created, 0 if updated
+                    }
+                    _ => Err(WRONG_TYPE.to_string()),                    
+                }
+            }
+            None => {
+                let mut hash = HashMap::new();
+                hash.insert(field,value);
+                data.insert(
+                    key,
+                    StoreEntry { 
+                        value: StoreValue::HashVal(hash), 
+                        expires_at: None 
+                    }
+                );
+                Ok(1) //New field created
+            }
+        }
+    }
+
+    //This function is intended to implement the HGET command, which retrieves the value of a field in a hash stored at a given key. If the key does not exist or is not a hash, it should return an error. If the field does not exist, it should return None.
+    pub fn hget(&self, key: &str, field: &str) -> Result<Option<String>, String> {
+        let data = self.data.lock().unwrap();
+
+        match data.get(key) {
+            Some(entry) => {
+                match &entry.value {
+                    StoreValue::HashVal(hash) => {
+                        Ok(hash.get(field).cloned()) //Return the value if field exists, None otherwise
+                    }
+                    _ => Err(WRONG_TYPE.to_string()),
+                }
+            },
+            None => Ok(None), //Return None if key does not exist
+        }
+    }
+
+    //This function is intended to implement the HDEL command, which deletes one or more fields from a hash stored at a given key. If the key is not a hash, it should return an error. The function should return the number of fields that were successfully deleted, and return zero if the key does not exist.
+    pub fn hdel(&self, key: &str, fields: &[String]) -> Result<i64, String> {
+        let mut data = self.data.lock().unwrap();
+
+        match data.get_mut(key) {
+            Some(entry) => {
+                match &mut entry.value {
+                    StoreValue::HashVal(hash) => {
+                        let mut count = 0;
+                        for field in fields {
+                            if hash.remove(field).is_some() {
+                                count += 1;
+                            }
+                        }
+                        Ok(count)
+                    }
+                    _ => Err(WRONG_TYPE.to_string()),
+                }
+            }
+            None => Ok(0), //Return 0 if key does not exist
+        }
+    }
+
+    //This function is intended to implement the HGETALL command, which retrieves all fields and values of a hash stored at a given key. If the key is not a hash, it should return an error. The function should return a vector of tuples, where each tuple contains a field and its corresponding value. If the key does not exist, it should return an empty vector.
+    pub fn hgetall(&self, key: &str) -> Result<Vec<(String, String)>, String> {
+        let data = self.data.lock().unwrap();
+
+        match data.get(key) {
+            Some(entry) => {
+                match &entry.value {
+                    StoreValue::HashVal(hash) => {
+                        Ok(hash
+                            .iter()
+                            .map(|(field, value)| (field.clone(), value.clone()))
+                            .collect()
+                        )
+                    }
+                    _ => Err(WRONG_TYPE.to_string()),
+                }
+            }
+            None => Ok(vec![]), //Return empty vector if key does not exist
+        }
+    }
+
     //This function runs in a loop, sleeping for 1 second between iterations. In each iteration, it locks the store's data and removes any entries that have expired. This ensures that expired keys are cleaned up regularly, preventing the store from growing indefinitely with stale data.
     pub async fn active_expiry_task(store: Arc<Store>) {
         loop {
