@@ -263,6 +263,75 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             }
         }
 
+        "HSET" => {
+            if args.len() != 4 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
+            }
+
+            match store.hset(args[1].clone(), args[2].clone(), args[3].clone()){
+                Ok(success) => RespValue::Integer(success),
+                Err(e) => RespValue::err(e),    
+            }
+
+        }
+
+        "HGET" => {
+            if args.len() != 3 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
+            }
+
+            match store.hget(&args[1], &args[2]){
+                Ok(Some(value)) => RespValue::bulk(value),
+                Ok(None) => RespValue::null(),
+                Err(e) => RespValue::err(e),
+            }
+        }
+
+        "HDEL" => {
+            if args.len() < 3 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
+            }
+
+            match store.hdel(&args[1],&args[2..]){
+                Ok(count) => RespValue::Integer(count),
+                Err(e) => RespValue::err(e),
+            }
+        }
+
+        "HGETALL" => {
+            if args.len() != 2 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
+            }
+
+            match store.hgetall(&args[1]){
+                Ok(values) => {
+                    RespValue::Array(Some(
+                        values.into_iter()
+                            .flat_map(|(field, value)| {
+                                vec![
+                                    RespValue::bulk(field),
+                                    RespValue::bulk(value),
+                                ]
+                            })
+                            .collect()
+                    ))
+                }
+                Err(e) => RespValue::err(e),
+            }
+        }
+
         cmd => RespValue::err(format!("ERR unknown command '{}'", cmd)),
     }
 }
