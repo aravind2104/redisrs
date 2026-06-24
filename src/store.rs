@@ -1,11 +1,18 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque, HashSet};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tokio::time;
 use std::sync::Arc;
 
+#[derive(Clone)]
+pub enum StoreValue {
+    StringVal(String),
+    ListVal(VecDeque<String>),
+    HashVal(HashMap<String, String>),
+    SetVal(HashSet<String>),
+}
 pub struct StoreEntry {
-    pub value: String,
+    pub value: StoreValue,
     pub expires_at: Option<Instant>,
 }
 
@@ -22,18 +29,25 @@ impl Store {
     }
 
     // Retrieves the value associated with the given key, if it exists and is not expired. If the key is expired, it will be removed from the store and None will be returned.
-    pub fn get(&self, key: &str) -> Option<String> {
+    pub fn get(&self, key: &str) -> Result<Option<String>, String> {
         let mut data = self.data.lock().unwrap();
 
         if let Some(entry) = data.get(key) {
             if Self::is_expired(entry) {
                 data.remove(key);
-                return None;
+                return Ok(None);
             }
-            return Some(entry.value.clone());
+            match &entry.value {
+                StoreValue::StringVal(s) => {
+                    return Ok(Some(s.clone()));
+                }
+                _ => {
+                    return Err(format!("WRONGTYPE Operation against a key holding the wrong kind of value"));
+                }
+            }
         }
 
-        None
+        Ok(None)
     }
 
     // Sets the value for the given key in the store. If the key already exists, its value will be updated. The expiration time is set to None, meaning the key will not expire unless explicitly set later.
@@ -42,7 +56,7 @@ impl Store {
         data.insert(
             key,
             StoreEntry {
-                value,
+                value: StoreValue::StringVal(value),
                 expires_at: None,
             },
         );
@@ -55,7 +69,7 @@ impl Store {
         data.insert(
             key,
             StoreEntry {
-                value,
+                value: StoreValue::StringVal(value),
                 expires_at: Some(expires_at),
             },
         );

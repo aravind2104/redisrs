@@ -33,8 +33,9 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             }
 
             match store.get(&args[1]) {
-                Some(value) => RespValue::bulk(value),
-                None => RespValue::null(),
+                Ok(Some(value)) => RespValue::bulk(value),
+                Ok(None) => RespValue::null(),
+                Err(_) => RespValue::err("ERR wrong kind of value"),
             }
         }
 
