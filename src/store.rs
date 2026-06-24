@@ -401,20 +401,18 @@ impl Store {
         let mut data = self.data.lock().unwrap();
 
         match data.get_mut(&key) {
-            Some(entry) => {
-                match &mut entry.value {
-                    StoreValue::SetVal(set) => {
-                        let mut count = 0;
-                        for member in members {
-                            if set.insert(member) {
-                                count += 1;
-                            }
+            Some(entry) => match &mut entry.value {
+                StoreValue::SetVal(set) => {
+                    let mut count = 0;
+                    for member in members {
+                        if set.insert(member) {
+                            count += 1;
                         }
-                        Ok(count)
                     }
-                    _ => Err(WRONG_TYPE.to_string()),
+                    Ok(count)
                 }
-            }
+                _ => Err(WRONG_TYPE.to_string()),
+            },
             None => {
                 let mut set = HashSet::new();
                 let mut count = 0;
@@ -429,7 +427,7 @@ impl Store {
                     StoreEntry {
                         value: StoreValue::SetVal(set),
                         expires_at: None,
-                    }
+                    },
                 );
                 Ok(count)
             }
@@ -441,14 +439,10 @@ impl Store {
         let data = self.data.lock().unwrap();
 
         match data.get(key) {
-            Some(entry) => {
-                match &entry.value {
-                    StoreValue::SetVal(set) => {
-                        Ok(set.iter().cloned().collect())
-                    }
-                    _ => Err(WRONG_TYPE.to_string()),
-                }
-            }
+            Some(entry) => match &entry.value {
+                StoreValue::SetVal(set) => Ok(set.iter().cloned().collect()),
+                _ => Err(WRONG_TYPE.to_string()),
+            },
             None => Ok(vec![]), //Return empty vector if key does not exist
         }
     }
@@ -458,14 +452,10 @@ impl Store {
         let data = self.data.lock().unwrap();
 
         match data.get(key) {
-            Some(entry) => {
-                match &entry.value {
-                    StoreValue::SetVal(set) => {
-                        Ok(set.contains(member))
-                    }
-                    _ => Err(WRONG_TYPE.to_string()),
-                }
-            }
+            Some(entry) => match &entry.value {
+                StoreValue::SetVal(set) => Ok(set.contains(member)),
+                _ => Err(WRONG_TYPE.to_string()),
+            },
             None => Ok(false), //Return false if key does not exist
         }
     }
@@ -475,21 +465,19 @@ impl Store {
         let mut data = self.data.lock().unwrap();
 
         match data.get_mut(key) {
-            Some(entry) => {
-                match &mut entry.value {
-                    StoreValue::SetVal(set) => {
-                        let mut count = 0;
-                        for member in members {
-                            if set.remove(member) {
-                                count += 1;
-                            }
+            Some(entry) => match &mut entry.value {
+                StoreValue::SetVal(set) => {
+                    let mut count = 0;
+                    for member in members {
+                        if set.remove(member) {
+                            count += 1;
                         }
-                        Ok(count)
                     }
-                    _ => Err(WRONG_TYPE.to_string()),
+                    Ok(count)
                 }
-            }
-            None => Ok(0) //Return 0 if key does not exist
+                _ => Err(WRONG_TYPE.to_string()),
+            },
+            None => Ok(0), //Return 0 if key does not exist
         }
     }
 
