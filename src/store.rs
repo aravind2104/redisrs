@@ -1,21 +1,24 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::{Duration, SystemTime};
 use tokio::time;
+use serde::{Deserialize, Serialize};
 
 const WRONG_TYPE: &str = "WRONGTYPE Operation against a key holding the wrong kind of value";
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum StoreValue {
     StringVal(String),
     ListVal(VecDeque<String>),
     HashVal(HashMap<String, String>),
     SetVal(HashSet<String>),
 }
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct StoreEntry {
     pub value: StoreValue,
-    pub expires_at: Option<Instant>,
+    pub expires_at: Option<SystemTime>,
 }
 
 pub struct Store {
@@ -67,7 +70,7 @@ impl Store {
     //Sets the value for the given key in the store with an expiration time in seconds. If the key already exists, its value and expiration time will be updated.
     pub fn set_with_expiry(&self, key: String, value: String, duration: Duration) {
         let mut data = self.data.lock().unwrap();
-        let expires_at = Instant::now() + duration;
+        let expires_at = SystemTime::now() + duration;
         data.insert(
             key,
             StoreEntry {
@@ -116,7 +119,7 @@ impl Store {
     pub fn expire(&self, key: &str, seconds: u64) -> bool {
         let mut data = self.data.lock().unwrap();
         if let Some(entry) = data.get_mut(key) {
-            entry.expires_at = Some(Instant::now() + Duration::from_secs(seconds));
+            entry.expires_at = Some(SystemTime::now() + Duration::from_secs(seconds));
 
             true
         } else {
@@ -147,7 +150,7 @@ impl Store {
                 return -2; // Key does not exist(expired)
             } else {
                 if let Some(expiry) = entry.expires_at {
-                    let ttl = expiry.saturating_duration_since(Instant::now());
+                    let ttl = expiry.duration_since(SystemTime::now()).unwrap_or_default();
                     return ttl.as_secs() as i64;
                 } else {
                     return -1; // Key exists but has no expiry
@@ -486,7 +489,7 @@ impl Store {
         loop {
             time::sleep(Duration::from_secs(1)).await;
             let mut data = store.data.lock().unwrap();
-            let now = Instant::now();
+            let now = SystemTime::now();
             data.retain(|_, entry| match entry.expires_at {
                 Some(expires_at) => expires_at > now,
                 None => true,
@@ -497,7 +500,7 @@ impl Store {
     //Helper function to check if a StoreEntry is expired
     fn is_expired(entry: &StoreEntry) -> bool {
         match entry.expires_at {
-            Some(t) => Instant::now() >= t,
+            Some(t) => SystemTime::now() >= t,
             None => false,
         }
     }
