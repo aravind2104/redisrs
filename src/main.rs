@@ -4,6 +4,7 @@ mod resp;
 mod server;
 mod store;
 
+use std::path::Path;
 use anyhow::Result;
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -14,8 +15,11 @@ use crate::{persistence::load_aof, persistence::load_rdb, store::Store};
 async fn main() -> Result<()> {
     let listener = TcpListener::bind("127.0.0.1:6379").await?;
     let store = Arc::new(Store::new());
-    load_rdb(&store, "dump.rdb")?;
-    load_aof(&store, "appendonly.aof")?;
+    if Path::new("appendonly.aof").exists() {
+        load_aof(&store, "appendonly.aof")?;
+    } else {
+        load_rdb(&store, "dump.rdb")?;
+    }
 
     tokio::spawn(store::Store::active_expiry_task(Arc::clone(&store)));
     tokio::spawn(persistence::rdb_snapshot_task(
