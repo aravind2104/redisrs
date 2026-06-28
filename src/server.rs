@@ -1,4 +1,5 @@
 use crate::commands;
+use crate::config::Config;
 use crate::resp::{self, RespError, RespValue};
 use crate::store::Store;
 use anyhow:: Result;
@@ -6,7 +7,9 @@ use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
-pub async fn handle_client(mut socket: TcpStream, store: Arc<Store>) -> Result<()> {
+pub async fn handle_client(mut socket: TcpStream, store: Arc<Store>, config: Arc<Config>) -> Result<()> {
+    let requires_auth = config.password.is_some();
+    let mut authenticated = !requires_auth;
     let mut buf = Vec::with_capacity(4096);
     let mut tmp = [0u8; 4096];
 
@@ -22,9 +25,39 @@ pub async fn handle_client(mut socket: TcpStream, store: Arc<Store>) -> Result<(
         loop {
             match resp::parse(&buf[consumed..]) {
                 Ok((value, n)) => {
+                    consumed += n;
                     let args = commands::extract_args(value);
 
                     let cmd = args[0].to_uppercase();
+
+                    if cmd == "AUTH" {
+                        if args.len() < 2 {
+                            let err = RespValue::err("ERR wrong number of arguments for 'auth' command");
+                            socket.write_all(&err.serialize()).await?;
+                        } else {
+                            let password = args[1].clone();
+                            if let Some(expected_password) = &config.password {
+                                if &password == expected_password {
+                                    authenticated = true;
+                                    let response = RespValue::ok();
+                                    socket.write_all(&response.serialize()).await?;
+                                } else {
+                                    let err = RespValue::err("ERR invalid password");
+                                    socket.write_all(&err.serialize()).await?;
+                                }
+                            } else {
+                                let err = RespValue::err("ERR no password is set");
+                                socket.write_all(&err.serialize()).await?;
+                            }
+                        }
+                        continue;
+                    }
+
+                    if requires_auth && !authenticated {
+                        let err = RespValue::err("NOAUTH Authentication required.");
+                        socket.write_all(&err.serialize()).await?;
+                        continue;
+                    }
 
                     if cmd == "SUBSCRIBE" {
                         if args.len() < 2 {
@@ -36,11 +69,10 @@ pub async fn handle_client(mut socket: TcpStream, store: Arc<Store>) -> Result<(
                         continue;
                     }
 
-                    let response = commands::execute(args, Arc::clone(&store));
+                    let response = commands::execute(args, Arc::clone(&store), &config.aof_path.as_deref().unwrap_or("appendonly.aof"));
 
                     socket.write_all(&response.serialize()).await?;
 
-                    consumed += n;
                 }
 
                 Err(RespError::Incomplete) => {

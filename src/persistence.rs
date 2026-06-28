@@ -32,9 +32,9 @@ pub fn load_rdb(store: &Store, path: &str) -> Result<()> {
     Ok(())
 }
 
-pub async fn rdb_snapshot_task(store: Arc<Store>, path: &'static str) {
+pub async fn rdb_snapshot_task(store: Arc<Store>, path: &'static str, interval: u64) {
     loop {
-        tokio::time::sleep(Duration::from_secs(300)).await;
+        tokio::time::sleep(Duration::from_secs(interval)).await;
         if let Err(e) = save_rdb(&store, path) {
             eprintln!("Error saving RDB snapshot: {:?}", e);
         } else {
@@ -69,7 +69,7 @@ pub fn load_aof(store: &Arc<Store>, path: &str) -> Result<()> {
             Ok((value, consumed)) => {
                 let args = commands::extract_args(value);
 
-                commands::execute(args, Arc::clone(store));
+                commands::execute(args, Arc::clone(store), &path);
 
                 offset += consumed;
             }
