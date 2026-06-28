@@ -49,5 +49,3 @@ pub async fn handle_client(mut socket: TcpStream, store: Arc<Store>) -> Result<(
         }
     }
 }
-
-

@@ -1,3 +1,4 @@
 /target
 README.md
 dump.rdb
+appendonly.aof

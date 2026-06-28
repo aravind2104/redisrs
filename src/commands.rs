@@ -43,7 +43,7 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
         "SET" => match args.len() {
             3 => {
                 store.set(args[1].clone(), args[2].clone());
-                let response =RespValue::ok();
+                let response = RespValue::ok();
                 append_aof("appendonly.aof", &args).ok();
                 response
             }

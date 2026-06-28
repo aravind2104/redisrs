@@ -1,9 +1,9 @@
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime};
 use tokio::time;
-use serde::{Deserialize, Serialize};
 
 const WRONG_TYPE: &str = "WRONGTYPE Operation against a key holding the wrong kind of value";
 

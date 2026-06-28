@@ -1,17 +1,17 @@
-use crate::{commands, resp};
-use crate::store::{Store, StoreEntry};
 use crate::resp::RespValue;
-use std::collections::HashMap;
-use std::time::Duration;
+use crate::store::{Store, StoreEntry};
+use crate::{commands, resp};
 use anyhow::Result;
-use std::io::Write;
+use std::collections::HashMap;
 use std::fs;
+use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 
 pub fn save_rdb(store: &Store, path: &str) -> Result<()> {
     let data = store.data.lock().unwrap();
-    let bytes= bincode::serialize(&*data)?;
+    let bytes = bincode::serialize(&*data)?;
     fs::write(path, bytes)?;
     Ok(())
 }
@@ -23,8 +23,7 @@ pub fn load_rdb(store: &Store, path: &str) -> Result<()> {
 
     let bytes = fs::read(path)?;
 
-    let snapshot: HashMap<String, StoreEntry> =
-        bincode::deserialize(&bytes)?;
+    let snapshot: HashMap<String, StoreEntry> = bincode::deserialize(&bytes)?;
 
     let mut data = store.data.lock().unwrap();
 
@@ -45,12 +44,7 @@ pub async fn rdb_snapshot_task(store: Arc<Store>, path: &'static str) {
 }
 
 pub fn append_aof(path: &str, args: &[String]) -> Result<()> {
-    let value = RespValue::Array(Some(
-        args.iter()
-            .cloned()
-            .map(RespValue::bulk)
-            .collect(),
-    ));
+    let value = RespValue::Array(Some(args.iter().cloned().map(RespValue::bulk).collect()));
     let bytes = value.serialize();
 
     let mut file = fs::OpenOptions::new()
@@ -71,7 +65,7 @@ pub fn load_aof(store: &Arc<Store>, path: &str) -> Result<()> {
     let mut offset = 0;
 
     while offset < bytes.len() {
-        match resp::parse(&bytes[offset..]){
+        match resp::parse(&bytes[offset..]) {
             Ok((value, consumed)) => {
                 let args = commands::extract_args(value);
 
