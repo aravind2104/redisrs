@@ -96,7 +96,8 @@ pub async fn handle_client(mut socket: TcpStream, store: Arc<Store>, config: Arc
 
 
 async fn handle_subscribe(socket: &mut TcpStream, store: Arc<Store>, channel: String) -> Result<()> {
-    let mut receiver = store.subscribe(&channel);
+    let mut receiver  = store.subscribe(&channel);
+    let mut tmp = [0u8; 1024];
 
     let response = RespValue::Array(Some(vec![
             RespValue::bulk("subscribe"),
@@ -108,21 +109,52 @@ async fn handle_subscribe(socket: &mut TcpStream, store: Arc<Store>, channel: St
 
 
     loop {
-        match receiver.recv().await {
-            Ok(message) => {
-                let response = RespValue::Array(Some(vec![
-                    RespValue::bulk("message"),
-                    RespValue::bulk(channel.clone()),
-                    RespValue::bulk(message),
-                ]));
-                socket.write_all(&response.serialize()).await?;
+        tokio::select! {
+            result = receiver.recv() => {
+                match result {
+                    Ok(message) => {
+                        let response = RespValue::Array(Some(vec![
+                            RespValue::bulk("message"),
+                            RespValue::bulk(channel.clone()),
+                            RespValue::bulk(message),
+                        ]));
+                        socket.write_all(&response.serialize()).await?;
+                    }
+                    Err(_) => {
+                        // The sender has been dropped, which means the channel is closed.
+                        break;
+                    }
+                }
             }
-            Err(_) => {
-                // The sender has been dropped, which means the channel is closed.
-                break;
+            result = socket.read(&mut tmp) => {
+                match result {
+                    Ok(0) => return Ok(()), // Client disconnected
+                    Ok(n) => {
+                       if let Ok((RespValue::Array(Some(value)), _)) = resp::parse(&tmp[..n]) {
+                            let args = commands::extract_args(RespValue::Array(Some(value)));
+                            let cmd = args[0].to_uppercase();
+                            if cmd == "UNSUBSCRIBE" {
+                                let response = RespValue::Array(Some(vec![
+                                    RespValue::bulk("unsubscribe"),
+                                    RespValue::bulk(channel.clone()),
+                                    RespValue::Integer(0),
+                                ]));
+                                socket.write_all(&response.serialize()).await?;
+                                return Ok(());
+                            } else {
+                                let err = RespValue::err("ERR only UNSUBSCRIBE command is allowed in subscription mode");
+                                socket.write_all(&err.serialize()).await?;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error reading from socket: {}", e);
+                        break;
+                    }
+                }
             }
         }
+        
     }
-
     Ok(())
 }
