@@ -427,7 +427,6 @@ pub fn execute(args: Vec<String>, store: Arc<Store>, aof_path: &str) -> RespValu
             }
         }
 
-
         "PUBLISH" => {
             if args.len() != 3 {
                 return RespValue::err(format!(

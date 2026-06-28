@@ -2,12 +2,16 @@ use crate::commands;
 use crate::config::Config;
 use crate::resp::{self, RespError, RespValue};
 use crate::store::Store;
-use anyhow:: Result;
+use anyhow::Result;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
-pub async fn handle_client(mut socket: TcpStream, store: Arc<Store>, config: Arc<Config>) -> Result<()> {
+pub async fn handle_client(
+    mut socket: TcpStream,
+    store: Arc<Store>,
+    config: Arc<Config>,
+) -> Result<()> {
     let requires_auth = config.password.is_some();
     let mut authenticated = !requires_auth;
     let mut buf = Vec::with_capacity(4096);
@@ -32,7 +36,8 @@ pub async fn handle_client(mut socket: TcpStream, store: Arc<Store>, config: Arc
 
                     if cmd == "AUTH" {
                         if args.len() < 2 {
-                            let err = RespValue::err("ERR wrong number of arguments for 'auth' command");
+                            let err =
+                                RespValue::err("ERR wrong number of arguments for 'auth' command");
                             socket.write_all(&err.serialize()).await?;
                         } else {
                             let password = args[1].clone();
@@ -61,18 +66,24 @@ pub async fn handle_client(mut socket: TcpStream, store: Arc<Store>, config: Arc
 
                     if cmd == "SUBSCRIBE" {
                         if args.len() < 2 {
-                            let err = RespValue::err("ERR wrong number of arguments for 'subscribe' command");
+                            let err = RespValue::err(
+                                "ERR wrong number of arguments for 'subscribe' command",
+                            );
                             socket.write_all(&err.serialize()).await?;
                         } else {
-                            handle_subscribe(&mut socket, Arc::clone(&store), args[1].clone()).await?;
+                            handle_subscribe(&mut socket, Arc::clone(&store), args[1].clone())
+                                .await?;
                         }
                         continue;
                     }
 
-                    let response = commands::execute(args, Arc::clone(&store), &config.aof_path.as_deref().unwrap_or("appendonly.aof"));
+                    let response = commands::execute(
+                        args,
+                        Arc::clone(&store),
+                        &config.aof_path.as_deref().unwrap_or("appendonly.aof"),
+                    );
 
                     socket.write_all(&response.serialize()).await?;
-
                 }
 
                 Err(RespError::Incomplete) => {
@@ -94,19 +105,21 @@ pub async fn handle_client(mut socket: TcpStream, store: Arc<Store>, config: Arc
     }
 }
 
-
-async fn handle_subscribe(socket: &mut TcpStream, store: Arc<Store>, channel: String) -> Result<()> {
-    let mut receiver  = store.subscribe(&channel);
+async fn handle_subscribe(
+    socket: &mut TcpStream,
+    store: Arc<Store>,
+    channel: String,
+) -> Result<()> {
+    let mut receiver = store.subscribe(&channel);
     let mut tmp = [0u8; 1024];
 
     let response = RespValue::Array(Some(vec![
-            RespValue::bulk("subscribe"),
-            RespValue::bulk(channel.clone()),
-            RespValue::Integer(1),
-        ]));
+        RespValue::bulk("subscribe"),
+        RespValue::bulk(channel.clone()),
+        RespValue::Integer(1),
+    ]));
 
     socket.write_all(&response.serialize()).await?;
-
 
     loop {
         tokio::select! {
@@ -154,7 +167,6 @@ async fn handle_subscribe(socket: &mut TcpStream, store: Arc<Store>, channel: St
                 }
             }
         }
-        
     }
     Ok(())
 }

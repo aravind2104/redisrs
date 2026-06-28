@@ -23,20 +23,17 @@ impl Default for Config {
 impl Config {
     pub fn load(path: &str) -> Config {
         match fs::read_to_string(path) {
-            Ok(contents) => {
-                match toml::from_str(&contents) {
-                    Ok(config) => config,
-                    Err(e) => {
-                        eprintln!("Failed to parse config file: {}", e);
-                        Config ::default()
-                    }
+            Ok(contents) => match toml::from_str(&contents) {
+                Ok(config) => config,
+                Err(e) => {
+                    eprintln!("Failed to parse config file: {}", e);
+                    Config::default()
                 }
-            }
+            },
             Err(e) => {
                 eprintln!("Failed to read config file: {}", e);
                 Config::default()
             }
         }
-
     }
 }

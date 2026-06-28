@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
-use tokio::sync::broadcast;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime};
+use tokio::sync::broadcast;
 use tokio::time;
 
 const WRONG_TYPE: &str = "WRONGTYPE Operation against a key holding the wrong kind of value";
@@ -487,7 +487,6 @@ impl Store {
         }
     }
 
-
     pub fn subscribe(&self, channel: &str) -> broadcast::Receiver<String> {
         let mut channels = self.channels.lock().unwrap();
         if let Some(sender) = channels.get(channel) {
@@ -497,8 +496,7 @@ impl Store {
             channels.insert(channel.to_string(), sender);
             receiver
         }
-    } 
-
+    }
 
     pub fn publish(&self, channel: &str, message: String) -> i64 {
         let channels = self.channels.lock().unwrap();

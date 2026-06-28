@@ -1,12 +1,12 @@
 mod commands;
+mod config;
 mod persistence;
 mod resp;
 mod server;
 mod store;
-mod config;
 
-use std::path::Path;
 use anyhow::Result;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 
@@ -17,7 +17,10 @@ async fn main() -> Result<()> {
     let config = config::Config::load("config.toml");
     let port = config.port.unwrap_or(6379);
     let addr = format!("127.0.0.1:{}", port);
-    let aof_path = config.aof_path.clone().unwrap_or_else(|| "appendonly.aof".to_string());
+    let aof_path = config
+        .aof_path
+        .clone()
+        .unwrap_or_else(|| "appendonly.aof".to_string());
     let snapshot_interval = config.snapshot_interval.unwrap_or(300);
     let listener = TcpListener::bind(&addr).await?;
     let store = Arc::new(Store::new());
