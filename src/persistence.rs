@@ -1,7 +1,10 @@
+use crate::{commands, resp};
 use crate::store::{Store, StoreEntry};
+use crate::resp::RespValue;
 use std::collections::HashMap;
 use std::time::Duration;
 use anyhow::Result;
+use std::io::Write;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
@@ -39,4 +42,50 @@ pub async fn rdb_snapshot_task(store: Arc<Store>, path: &'static str) {
             println!("RDB snapshot saved successfully to {}.", path);
         }
     }
+}
+
+pub fn append_aof(path: &str, args: &[String]) -> Result<()> {
+    let value = RespValue::Array(Some(
+        args.iter()
+            .cloned()
+            .map(RespValue::bulk)
+            .collect(),
+    ));
+    let bytes = value.serialize();
+
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)?;
+
+    file.write_all(&bytes)?;
+    Ok(())
+}
+
+pub fn load_aof(store: &Arc<Store>, path: &str) -> Result<()> {
+    if !Path::new(path).exists() {
+        return Ok(());
+    }
+
+    let bytes = fs::read(path)?;
+    let mut offset = 0;
+
+    while offset < bytes.len() {
+        match resp::parse(&bytes[offset..]){
+            Ok((value, consumed)) => {
+                let args = commands::extract_args(value);
+
+                commands::execute(args, Arc::clone(store));
+
+                offset += consumed;
+            }
+
+            Err(_) => {
+                eprintln!("Error parsing AOF file at offset {}", offset);
+                break;
+            }
+        }
+    }
+
+    Ok(())
 }

@@ -22,7 +22,7 @@ pub async fn handle_client(mut socket: TcpStream, store: Arc<Store>) -> Result<(
         loop {
             match resp::parse(&buf[consumed..]) {
                 Ok((value, n)) => {
-                    let args = extract_args(value);
+                    let args = commands::extract_args(value);
 
                     let response = commands::execute(args, Arc::clone(&store));
 
@@ -50,17 +50,4 @@ pub async fn handle_client(mut socket: TcpStream, store: Arc<Store>) -> Result<(
     }
 }
 
-fn extract_args(value: RespValue) -> Vec<String> {
-    match value {
-        RespValue::Array(Some(items)) => items
-            .into_iter()
-            .filter_map(|item| match item {
-                RespValue::BulkString(Some(s)) => Some(s),
-                RespValue::SimpleString(s) => Some(s),
-                _ => None,
-            })
-            .collect(),
 
-        _ => vec![],
-    }
-}

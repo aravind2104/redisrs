@@ -1,3 +1,4 @@
+use crate::persistence::append_aof;
 use crate::resp::RespValue;
 use crate::store::Store;
 use std::sync::Arc;
@@ -42,7 +43,9 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
         "SET" => match args.len() {
             3 => {
                 store.set(args[1].clone(), args[2].clone());
-                RespValue::ok()
+                let response =RespValue::ok();
+                append_aof("appendonly.aof", &args).ok();
+                response
             }
             5 => {
                 let option = args[3].to_uppercase();
@@ -64,7 +67,9 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
                 };
 
                 store.set_with_expiry(args[1].clone(), args[2].clone(), duration);
-                RespValue::ok()
+                let response = RespValue::ok();
+                append_aof("appendonly.aof", &args).ok();
+                response
             }
             _ => RespValue::err(format!(
                 "ERR wrong number of arguments for '{}' command",
@@ -81,7 +86,9 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             }
 
             let count = store.del(&args[1..]);
-            RespValue::Integer(count)
+            let response = RespValue::Integer(count);
+            append_aof("appendonly.aof", &args).ok();
+            response
         }
 
         "EXISTS" => {
@@ -173,7 +180,11 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             }
 
             match store.lpush(args[1].clone(), args[2..].to_vec()) {
-                Ok(len) => RespValue::Integer(len),
+                Ok(len) => {
+                    let response = RespValue::Integer(len);
+                    append_aof("appendonly.aof", &args).ok();
+                    response
+                }
                 Err(e) => RespValue::err(e),
             }
         }
@@ -187,7 +198,11 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             }
 
             match store.rpush(args[1].clone(), args[2..].to_vec()) {
-                Ok(len) => RespValue::Integer(len),
+                Ok(len) => {
+                    let response = RespValue::Integer(len);
+                    append_aof("appendonly.aof", &args).ok();
+                    response
+                }
                 Err(e) => RespValue::err(e),
             }
         }
@@ -201,7 +216,11 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             }
 
             match store.lpop(&args[1]) {
-                Ok(Some(value)) => RespValue::bulk(value),
+                Ok(Some(value)) => {
+                    let response = RespValue::bulk(value);
+                    append_aof("appendonly.aof", &args).ok();
+                    response
+                }
                 Ok(None) => RespValue::null(),
                 Err(e) => RespValue::err(e),
             }
@@ -216,7 +235,11 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             }
 
             match store.rpop(&args[1]) {
-                Ok(Some(value)) => RespValue::bulk(value),
+                Ok(Some(value)) => {
+                    let response = RespValue::bulk(value);
+                    append_aof("appendonly.aof", &args).ok();
+                    response
+                }
                 Ok(None) => RespValue::null(),
                 Err(e) => RespValue::err(e),
             }
@@ -272,7 +295,11 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             }
 
             match store.hset(args[1].clone(), args[2].clone(), args[3].clone()) {
-                Ok(success) => RespValue::Integer(success),
+                Ok(success) => {
+                    let response = RespValue::Integer(success);
+                    append_aof("appendonly.aof", &args).ok();
+                    response
+                }
                 Err(e) => RespValue::err(e),
             }
         }
@@ -301,7 +328,11 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             }
 
             match store.hdel(&args[1], &args[2..]) {
-                Ok(count) => RespValue::Integer(count),
+                Ok(count) => {
+                    let response = RespValue::Integer(count);
+                    append_aof("appendonly.aof", &args).ok();
+                    response
+                }
                 Err(e) => RespValue::err(e),
             }
         }
@@ -336,7 +367,11 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             }
 
             match store.sadd(args[1].clone(), args[2..].to_vec()) {
-                Ok(count) => RespValue::Integer(count),
+                Ok(count) => {
+                    let response = RespValue::Integer(count);
+                    append_aof("appendonly.aof", &args).ok();
+                    response
+                }
                 Err(e) => RespValue::err(e),
             }
         }
@@ -383,11 +418,30 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             }
 
             match store.srem(&args[1], &args[2..]) {
-                Ok(count) => RespValue::Integer(count),
+                Ok(count) => {
+                    let response = RespValue::Integer(count);
+                    append_aof("appendonly.aof", &args).ok();
+                    response
+                }
                 Err(e) => RespValue::err(e),
             }
         }
 
         cmd => RespValue::err(format!("ERR unknown command '{}'", cmd)),
+    }
+}
+
+pub fn extract_args(value: RespValue) -> Vec<String> {
+    match value {
+        RespValue::Array(Some(items)) => items
+            .into_iter()
+            .filter_map(|item| match item {
+                RespValue::BulkString(Some(s)) => Some(s),
+                RespValue::SimpleString(s) => Some(s),
+                _ => None,
+            })
+            .collect(),
+
+        _ => vec![],
     }
 }
