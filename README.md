@@ -251,24 +251,6 @@ The RESP parser has full unit test coverage including simple strings, bulk strin
 
 ---
 
-## 🤝 Contributing
-
-Contributions are welcome! Please open an issue first to discuss what you'd like to change. Make sure all tests pass before submitting a pull request.
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feat/sorted-sets`)
-3. Commit your changes (`git commit -m 'Add sorted set support'`)
-4. Push to your branch (`git push origin feat/sorted-sets`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
----
-
 ## 🙏 Acknowledgements
 
 - [Redis](https://redis.io/) — the original, for the protocol spec and inspiration
