@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tokio::sync::broadcast;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -23,6 +24,7 @@ pub struct StoreEntry {
 
 pub struct Store {
     pub data: Mutex<HashMap<String, StoreEntry>>,
+    pub channels: Mutex<HashMap<String, broadcast::Sender<String>>>,
 }
 
 impl Store {
@@ -30,6 +32,7 @@ impl Store {
     pub fn new() -> Self {
         Store {
             data: Mutex::new(HashMap::new()),
+            channels: Mutex::new(HashMap::new()),
         }
     }
 
@@ -481,6 +484,28 @@ impl Store {
                 _ => Err(WRONG_TYPE.to_string()),
             },
             None => Ok(0), //Return 0 if key does not exist
+        }
+    }
+
+
+    pub fn subscribe(&self, channel: &str) -> broadcast::Receiver<String> {
+        let mut channels = self.channels.lock().unwrap();
+        if let Some(sender) = channels.get(channel) {
+            sender.subscribe()
+        } else {
+            let (sender, receiver) = broadcast::channel(128);
+            channels.insert(channel.to_string(), sender);
+            receiver
+        }
+    } 
+
+
+    pub fn publish(&self, channel: &str, message: String) -> i64 {
+        let channels = self.channels.lock().unwrap();
+        if let Some(sender) = channels.get(channel) {
+            sender.send(message).unwrap_or(0) as i64
+        } else {
+            0
         }
     }
 

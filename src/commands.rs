@@ -427,6 +427,18 @@ pub fn execute(args: Vec<String>, store: Arc<Store>) -> RespValue {
             }
         }
 
+
+        "PUBLISH" => {
+            if args.len() != 3 {
+                return RespValue::err(format!(
+                    "ERR wrong number of arguments for '{}' command",
+                    cmd
+                ));
+            }
+            let count = store.publish(&args[1], args[2].clone());
+            RespValue::Integer(count)
+        }
+
         cmd => RespValue::err(format!("ERR unknown command '{}'", cmd)),
     }
 }
